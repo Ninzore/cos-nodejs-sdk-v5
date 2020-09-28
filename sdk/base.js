@@ -484,7 +484,7 @@ function putBucketPolicy(params, callback) {
             PolicyStr = JSON.stringify(Policy);
         }
     } catch (e) {
-        callback({error: 'Policy format error'});
+        callback(util.error(new Error('Policy format error')));
     }
 
     var headers = params.Headers;
@@ -534,13 +534,13 @@ function getBucketPolicy(params, callback) {
     }, function (err, data) {
         if (err) {
             if (err.statusCode && err.statusCode === 403) {
-                return callback({ErrorStatus: 'Access Denied'});
+                return callback(util.error(err, {ErrorStatus: 'Access Denied'}));
             }
             if (err.statusCode && err.statusCode === 405) {
-                return callback({ErrorStatus: 'Method Not Allowed'});
+                return callback(util.error(err, {ErrorStatus: 'Method Not Allowed'}));
             }
             if (err.statusCode && err.statusCode === 404) {
-                return callback({ErrorStatus: 'Policy Not Found'});
+                return callback(util.error(err, {ErrorStatus: 'Policy Not Found'}));
             }
             return callback(err);
         }
@@ -797,7 +797,7 @@ function deleteBucketLifecycle(params, callback) {
 function putBucketVersioning(params, callback) {
 
     if (!params['VersioningConfiguration']) {
-        callback({error: 'missing param VersioningConfiguration'});
+        callback(util.error(new Error('missing param VersioningConfiguration')));
         return;
     }
     var VersioningConfiguration = params['VersioningConfiguration'] || {};
@@ -946,7 +946,7 @@ function deleteBucketReplication(params, callback) {
 function putBucketWebsite(params, callback) {
 
     if (!params['WebsiteConfiguration']) {
-        callback({ error: 'missing param WebsiteConfiguration' });
+        callback(util.error(new Error('missing param WebsiteConfiguration')));
         return;
     }
 
@@ -1080,7 +1080,7 @@ function deleteBucketWebsite(params, callback) {
 function putBucketReferer(params, callback) {
 
     if (!params['RefererConfiguration']) {
-        callback({ error: 'missing param RefererConfiguration' });
+        callback(util.error(new Error('missing param RefererConfiguration')));
         return;
     }
 
@@ -1664,7 +1664,7 @@ function deleteBucketInventory(params, callback) {
 function putBucketAccelerate(params, callback) {
 
     if (!params['AccelerateConfiguration']) {
-        callback({error: 'missing param AccelerateConfiguration'});
+        callback(util.error(new Error('missing param AccelerateConfiguration')));
         return;
     }
 
@@ -2228,7 +2228,7 @@ function putObjectCopy(params, callback) {
     var CopySource = params.CopySource || '';
     var m = CopySource.match(/^([^.]+-\d+)\.cos(v6)?\.([^.]+)\.[^/]+\/(.+)$/);
     if (!m) {
-        callback({error: 'CopySource format error'});
+        callback(util.error(new Error('CopySource format error')));
         return;
     }
 
@@ -2272,7 +2272,7 @@ function uploadPartCopy(params, callback) {
     var CopySource = params.CopySource || '';
     var m = CopySource.match(/^([^.]+-\d+)\.cos(v6)?\.([^.]+)\.[^/]+\/(.+)$/);
     if (!m) {
-        callback({error: 'CopySource format error'});
+        callback(util.error(new Error('CopySource format error')));
         return;
     }
 
@@ -2368,7 +2368,7 @@ function deleteMultipleObject(params, callback) {
 function restoreObject(params, callback) {
     var headers = params.Headers;
     if (!params['RestoreRequest']) {
-        callback({error: 'missing param RestoreRequest'});
+        callback(util.error(new Error('missing param RestoreRequest')));
         return;
     }
 
@@ -3453,7 +3453,7 @@ function _submitRequest(params, callback) {
 
     sender.on('error', function (err) {
         markLastBytesWritten();
-        cb({error: err});
+        cb(util.error(err));
     });
     sender.on('response', function (response) {
         retResponse = response;
@@ -3466,7 +3466,7 @@ function _submitRequest(params, callback) {
                 cb(null, {});
             });
         } else if (responseContentLength >= process.binding('buffer').kMaxLength && opt.method !== 'HEAD') {
-            cb({error: 'file size large than ' + process.binding('buffer').kMaxLength + ', please use "Output" Stream to getObject.'});
+            cb(util.error(new Error('file size large than ' + process.binding('buffer').kMaxLength + ', please use "Output" Stream to getObject.')));
         } else {
             var dataHandler = function (chunk) {
                 chunkList.push(chunk);
@@ -3476,7 +3476,7 @@ function _submitRequest(params, callback) {
                 try {
                     var body = Buffer.concat(chunkList);
                 } catch (e) {
-                    cb({error: e});
+                    cb(util.error(e));
                     return;
                 }
                 var bodyStr = body.toString();
@@ -3486,7 +3486,7 @@ function _submitRequest(params, callback) {
                     } else if (body.length) {
                         json = xml2json(body.toString());
                         if (json && json.Error) {
-                            cb({error: json.Error});
+                            cb(util.error(new Error(), json.Error));
                         } else {
                             cb(null, json);
                         }
@@ -3495,7 +3495,20 @@ function _submitRequest(params, callback) {
                     }
                 } else {
                     bodyStr && (json = xml2json(bodyStr));
-                    cb({error: json && json.Error || response.statusMessage || 'statusCode error'});
+                    var errOpt, errMsg;
+                    var cosError = json && json.Error;
+                    if (cosError) {
+                        errOpt = {
+                            code: cosError.Code,
+                            message: cosError.Message,
+                            error: cosError,
+                            RequestId: cosError.RequestId,
+                        };
+                        errMsg = cosError.Message;
+                    } else {
+                        errMsg = response.statusMessage || 'statusCode error';
+                    }
+                    cb(util.error(new Error(errMsg), errOpt));
                 }
                 chunkList = null;
             };

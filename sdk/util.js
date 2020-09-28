@@ -134,6 +134,31 @@ var getV4Auth = function (opt) {
     return sign;
 };
 
+var error = function (err, opt) {
+    err.message = err.message || null;
+
+    if (typeof opt === 'string') {
+        err.error = opt;
+        err.message = opt;
+    } else if (typeof opt === 'object' && opt !== null) {
+        extend(err, opt);
+        if (opt.message) err.message = opt.message;
+        if (opt.code || opt.name) err.code = opt.code || opt.name;
+        if (opt.stack) err.stack = opt.stack;
+    }
+
+    if (typeof Object.defineProperty === 'function') {
+        Object.defineProperty(err, 'name', {writable: true, enumerable: false});
+        Object.defineProperty(err, 'message', {enumerable: true});
+    }
+
+    err.name = opt && opt.name || err.name || err.code || 'Error';
+    if (!err.code) err.code = err.name;
+    if (!err.error) err.error = clone(err); // 兼容老的错误格式
+
+    return err;
+}
+
 var noop = function () {
 
 };
@@ -202,7 +227,7 @@ var getFileMd5 = function (readStream, callback) {
         md5.update(chunk);
     });
     readStream.on('error', function (err) {
-        callback(err);
+        callback(util.error(err));
     });
     readStream.on('end', function () {
         var hash = md5.digest('hex');
@@ -452,11 +477,11 @@ var apiWrapper = function (apiName, apiFn) {
                 callback = function (err, data) {
                     err ? reject(err) : resolve(data);
                 };
-                if (errMsg) return _callback({error: errMsg});
+                if (errMsg) return _callback(util.error(new Error(errMsg)));
                 apiFn.call(self, params, _callback);
             });
         } else {
-            if (errMsg) return _callback({error: errMsg});
+            if (errMsg) return _callback(util.error(new Error(errMsg)));
             var res = apiFn.call(self, params, _callback);
             if (isSync) return res;
         }
@@ -528,7 +553,7 @@ var getFileSize = function (api, params, callback) {
             });
             return;
         } else {
-            callback({error: 'missing param FilePath'});
+            callback(util.error(new Error('missing param FilePath')));
             return;
         }
     } else {
@@ -545,11 +570,11 @@ var getFileSize = function (api, params, callback) {
                     size = params.ContentLength;
                 }
             } else {
-                callback({error: 'params Body format error, Only allow Buffer|Stream|String.'});
+                callback(util.error(new Error('params Body format error, Only allow Buffer|Stream|String.')));
                 return;
             }
         } else {
-            callback({error: 'missing param Body'});
+            callback(util.error(new Error('missing param Body')));
             return;
         }
     }
@@ -589,6 +614,7 @@ var util = {
     getSkewTime: getSkewTime,
     getAuth: getAuth,
     getV4Auth: getV4Auth,
+    error: error,
     isBrowser: false,
 };
 
