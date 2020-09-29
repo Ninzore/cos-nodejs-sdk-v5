@@ -35,8 +35,8 @@ var getAuth = function (opt) {
         pathname.indexOf('/') !== 0 && (pathname = '/' + pathname);
     }
 
-    if (!SecretId) return console.error('missing param SecretId');
-    if (!SecretKey) return console.error('missing param SecretKey');
+    if (!SecretId) return throw new Error('missing param SecretId');
+    if (!SecretKey) return throw new Error('missing param SecretKey');
 
     var getObjectKeys = function (obj, forKey) {
         var list = [];
@@ -133,31 +133,6 @@ var getV4Auth = function (opt) {
     var sign = Buffer.concat([signKey, Buffer.from(plainText)]).toString("base64");
     return sign;
 };
-
-var error = function (err, opt) {
-    err.message = err.message || null;
-
-    if (typeof opt === 'string') {
-        err.error = opt;
-        err.message = opt;
-    } else if (typeof opt === 'object' && opt !== null) {
-        extend(err, opt);
-        if (opt.message) err.message = opt.message;
-        if (opt.code || opt.name) err.code = opt.code || opt.name;
-        if (opt.stack) err.stack = opt.stack;
-    }
-
-    if (typeof Object.defineProperty === 'function') {
-        Object.defineProperty(err, 'name', {writable: true, enumerable: false});
-        Object.defineProperty(err, 'message', {enumerable: true});
-    }
-
-    err.name = opt && opt.name || err.name || err.code || 'Error';
-    if (!err.code) err.code = err.name;
-    if (!err.error) err.error = clone(err); // 兼容老的错误格式
-
-    return err;
-}
 
 var noop = function () {
 
@@ -587,6 +562,31 @@ var getSkewTime = function (offset) {
     return Date.now() + (offset || 0);
 };
 
+var error = function (err, opt) {
+    err.message = err.message || null;
+
+    if (typeof opt === 'string') {
+        err.error = opt;
+        err.message = opt;
+    } else if (typeof opt === 'object' && opt !== null) {
+        extend(err, opt);
+        if (opt.message) err.message = opt.message;
+        if (opt.code || opt.name) err.code = opt.code || opt.name;
+        if (opt.stack) err.stack = opt.stack;
+    }
+
+    if (typeof Object.defineProperty === 'function') {
+        Object.defineProperty(err, 'name', {writable: true, enumerable: false});
+        Object.defineProperty(err, 'message', {enumerable: true});
+    }
+
+    err.name = opt && opt.name || err.name || err.code || 'Error';
+    if (!err.code) err.code = err.name;
+    if (!err.error) err.error = clone(err); // 兼容老的错误格式
+
+    return err;
+}
+
 var util = {
     noop: noop,
     formatParams: formatParams,
@@ -612,9 +612,9 @@ var util = {
     throttleOnProgress: throttleOnProgress,
     getFileSize: getFileSize,
     getSkewTime: getSkewTime,
+    error: error,
     getAuth: getAuth,
     getV4Auth: getV4Auth,
-    error: error,
     isBrowser: false,
 };
 

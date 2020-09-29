@@ -3480,13 +3480,33 @@ function _submitRequest(params, callback) {
                     return;
                 }
                 var bodyStr = body.toString();
+                var getError = function (json) {
+                    var cosError = json && json.Error;
+                    if (cosError) {
+                        util.error(new Error(), {
+                            code: cosError.Code,
+                            message: cosError.Message,
+                            error: cosError,
+                            RequestId: cosError.RequestId,
+                            // Interface: params.Interface || '',
+                            Scope: params.Scope,
+                        });
+                    } else if (response.statusCode) {
+                        util.error(new Error(), {
+                            code: response.statusCode,
+                            message: response.statusMessage
+                        });
+                    } else {
+                        util.error(new Error('statusCode error'));
+                    }
+                };
                 if (statusSuccess) {
                     if (rawBody) { // 不对 body 进行转换，body 直接挂载返回
                         cb(null, {body: body});
                     } else if (body.length) {
                         json = xml2json(body.toString());
                         if (json && json.Error) {
-                            cb(util.error(new Error(), json.Error));
+                            cb(getError(json));
                         } else {
                             cb(null, json);
                         }
@@ -3495,20 +3515,7 @@ function _submitRequest(params, callback) {
                     }
                 } else {
                     bodyStr && (json = xml2json(bodyStr));
-                    var errOpt, errMsg;
-                    var cosError = json && json.Error;
-                    if (cosError) {
-                        errOpt = {
-                            code: cosError.Code,
-                            message: cosError.Message,
-                            error: cosError,
-                            RequestId: cosError.RequestId,
-                        };
-                        errMsg = cosError.Message;
-                    } else {
-                        errMsg = response.statusMessage || 'statusCode error';
-                    }
-                    cb(util.error(new Error(errMsg), errOpt));
+                    cb(util.error(getError(json)));
                 }
                 chunkList = null;
             };
