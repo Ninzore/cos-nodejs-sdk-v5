@@ -35,8 +35,8 @@ var getAuth = function (opt) {
         pathname.indexOf('/') !== 0 && (pathname = '/' + pathname);
     }
 
-    if (!SecretId) return throw new Error('missing param SecretId');
-    if (!SecretKey) return throw new Error('missing param SecretKey');
+    if (!SecretId) throw new Error('missing param SecretId');
+    if (!SecretKey) throw new Error('missing param SecretKey');
 
     var getObjectKeys = function (obj, forKey) {
         var list = [];
